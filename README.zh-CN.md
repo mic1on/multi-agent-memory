@@ -223,6 +223,29 @@ mam forget MEMORY_ID 会保留审计记录。若要永久删除，手动删除 V
 
 项目要求 Python 3.11+，使用 uv 管理依赖，配置优先 YAML/Dynaconf。
 
+## 发布到 PyPI
+
+GitHub Actions 会在 Pull Request 和 push 时运行测试矩阵并构建 wheel/sdist。
+只有推送匹配 v* 的 tag 时才会进入 PyPI 发布流程；workflow 会先检查 tag
+版本是否与 pyproject.toml 中的版本一致。
+
+发布使用 PyPI Trusted Publishing 和 GitHub OIDC，不在仓库中保存 PyPI token。
+首次发布前，需要在 PyPI 中为项目 multi-agent-memory 配置 Trusted Publisher：
+
+- Owner：mic1on
+- Repository：multi-agent-memory
+- Workflow：release.yml
+- Environment：pypi
+
+同时在 GitHub 仓库设置中创建同名的 pypi environment。之后修改
+pyproject.toml 的 version，提交并推送对应 tag：
+
+    git tag v0.1.1
+    git push origin main v0.1.1
+
+tag workflow 会运行测试、构建发行包、检查 tag/版本一致性，然后发布到 PyPI。
+不要重复使用已经发布过的 tag 或版本号。
+
 MIT License，详见 [LICENSE](LICENSE)。
 
 英文文档：[README.md](README.md)；安装提示词：[docs/agent-install-prompt.md](docs/agent-install-prompt.md)。

@@ -1,0 +1,125 @@
+name: CI and release
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Test Python ${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: latest
+      - name: Install dependencies
+        run: uv sync --locked
+      - name: Run tests
+        run: uv run pytest
+      - name: Compile Python
+        run: python -m compileall -q src tests
+      - name: Check JavaScript adapters
+        run: |
+          node --check adapters/pi/agent-memory.js
+          node --check adapters/opencode/agent-memory.js
+      - name: Check JSON assets
+        run: |
+          python -m json.tool src/multi_agent_memory/assets/claude-hooks.json >/dev/null
+          python -m json.tool adapters/claude/settings.example.json >/dev/null
+
+  build:
+    name: Build distribution
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: latest
+      - name: Build package
+        run: uv build
+      - name: Check package metadata
+        run: |
+          python - <<'PY'
+          import pathlib
+          import zipfile
+
+          wheels = list(pathlib.Path("dist").glob("*.whl"))
+          archives = list(pathlib.Path("dist").glob("*.tar.gz"))
+          assert len(wheels) == 1, wheels
+          assert len(archives) == 1, archives
+          with zipfile.ZipFile(wheels[0]) as archive:
+              names = set(archive.namelist())
+          for required in (
+              "multi_agent_memory/assets/protocol.md",
+              "multi_agent_memory/assets/claude-code.md",
+          ):
+              assert required in names, required
+          PY
+      - name: Upload distribution
+        uses: actions/upload-artifact@v4
+        with:
+          name: distribution
+          path: dist/
+          if-no-files-found: error
+
+  publish:
+    name: Publish to PyPI
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    needs: build
+    permissions:
+      id-token: write
+      contents: read
+    environment:
+      name: pypi
+      url: https://pypi.org/p/multi-agent-memory
+    steps:
+      - name: Download distribution
+        uses: actions/download-artifact@v4
+        with:
+          name: distribution
+          path: dist/
+      - name: Check tag matches package version
+        env:
+          TAG_NAME: ${{ github.ref_name }}
+        run: |
+          python - <<'PY'
+          import os
+          import pathlib
+          import tarfile
+
+          expected = os.environ["TAG_NAME"].removeprefix("v")
+          archive = next(pathlib.Path("dist").glob("*.tar.gz"))
+          with tarfile.open(archive, "r:gz") as source:
+              metadata = next(
+                  member for member in source.getmembers()
+                  if member.name.endswith("/PKG-INFO")
+              )
+              content = source.extractfile(metadata).read().decode()
+          version = next(line.split(": ", 1)[1] for line in content.splitlines() if line.startswith("Version: "))
+          assert version == expected, (version, expected)
+          PY
+      - name: Publish distribution to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1

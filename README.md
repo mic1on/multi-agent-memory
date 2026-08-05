@@ -280,6 +280,32 @@ The project targets Python 3.11+ and keeps runtime configuration in YAML when
 configuration is needed. Contributions should include focused tests and must
 not add personal Vault data.
 
+## Publishing to PyPI
+
+GitHub Actions runs the test matrix and builds wheel/sdist artifacts on pull
+requests and pushes. A release is published only from a tag matching v*, and
+the workflow checks that the tag version matches pyproject.toml before
+publishing.
+
+The workflow uses PyPI Trusted Publishing through GitHub OIDC; no PyPI token is
+stored in the repository. One maintainer must configure a PyPI pending
+publisher for the multi-agent-memory project with:
+
+- Owner: mic1on
+- Repository: multi-agent-memory
+- Workflow: release.yml
+- Environment: pypi
+
+Create the matching pypi environment in the GitHub repository settings before
+the first release. Then publish a version by updating version in
+pyproject.toml, committing it, and pushing a matching tag:
+
+    git tag v0.1.1
+    git push origin main v0.1.1
+
+The tag workflow runs tests, builds the distribution, verifies the tag/version
+match, and publishes to PyPI. Do not reuse a tag or version already published.
+
 ## License
 
 MIT. See LICENSE.
