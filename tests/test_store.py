@@ -1,4 +1,5 @@
 import json
+import multiprocessing as mp
 from pathlib import Path
 
 from multi_agent_memory.config import Settings
@@ -7,6 +8,12 @@ from multi_agent_memory.store import Vault
 
 def make_vault(tmp_path: Path) -> Vault:
     return Vault(Settings(vault=tmp_path / "vault", state_dir=tmp_path / "state", index_path=tmp_path / "state" / "memory.sqlite3"))
+
+
+def _child_create(payload: tuple[str, str, str, str]) -> None:
+    vault_path, state_path, index_path, body = payload
+    vault = Vault(Settings(vault=Path(vault_path), state_dir=Path(state_path), index_path=Path(index_path)))
+    vault.create({"type": "learning", "body": body}, candidate=False)
 
 
 def test_candidate_confirmation_search_and_forget(tmp_path):
@@ -46,3 +53,20 @@ def test_markdown_is_authoritative_after_rebuild(tmp_path):
     path.write_text(text, encoding="utf-8")
     vault.rebuild()
     assert vault.search("Edited")[0]["id"] == identifier
+
+
+def test_concurrent_writers_from_separate_processes_serialize(tmp_path):
+    vault = make_vault(tmp_path)
+    context = mp.get_context("spawn")
+    payloads = [
+        (str(tmp_path / "vault"), str(tmp_path / "state"), str(tmp_path / "state" / "memory.sqlite3"), f"concurrent writer {i}")
+        for i in range(4)
+    ]
+    workers = [context.Process(target=_child_create, args=(payload,)) for payload in payloads]
+    for worker in workers:
+        worker.start()
+    for worker in workers:
+        worker.join()
+    assert all(worker.exitcode == 0 for worker in workers)
+    assert (tmp_path / "state" / ".memory.lock.sqlite3").exists()
+    assert vault.status()["by_status"]["active"] == 4

@@ -81,7 +81,7 @@ class Vault:
     def __init__(self, settings: Settings):
         self.settings = settings
         self.root = settings.vault
-        self.lock_path = settings.state_dir / ".memory.lock"
+        self.lock_path = settings.state_dir / ".memory.lock.sqlite3"
 
     def layout(self) -> None:
         self.root.mkdir(parents=True, exist_ok=True)
@@ -91,15 +91,14 @@ class Vault:
 
     @contextmanager
     def locked(self) -> Iterator[None]:
-        import fcntl
-
         self.settings.state_dir.mkdir(parents=True, exist_ok=True)
-        with self.lock_path.open("a+") as stream:
-            fcntl.flock(stream.fileno(), fcntl.LOCK_EX)
-            try:
-                yield
-            finally:
-                fcntl.flock(stream.fileno(), fcntl.LOCK_UN)
+        connection = sqlite3.connect(self.lock_path)
+        try:
+            connection.execute("CREATE TABLE IF NOT EXISTS lock (id INTEGER PRIMARY KEY)")
+            connection.execute("BEGIN IMMEDIATE")
+            yield
+        finally:
+            connection.close()
 
     def documents(self) -> Iterator[Path]:
         for folder in LAYERS.values():
