@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 import shutil
 from datetime import datetime, timezone
 from pathlib import Path
@@ -33,8 +34,8 @@ def _write_new(path: Path, content: str, *, force: bool) -> str:
     return f"installed: {path}"
 
 
-def _merge_codex(path: Path, *, force: bool) -> str:
-    source = json.loads(read_text("codex-hooks.json"))
+def _merge_hooks(path: Path, asset: str) -> str:
+    source = json.loads(read_text(asset))
     if path.exists():
         try:
             data: dict[str, Any] = json.loads(path.read_text(encoding="utf-8"))
@@ -65,6 +66,33 @@ def _merge_codex(path: Path, *, force: bool) -> str:
     return f"updated: {path}" + (f" (backup: {backup})" if backup else "")
 
 
+def _merge_codex(path: Path, *, force: bool) -> str:
+    return _merge_hooks(path, "codex-hooks.json")
+
+
+def _merge_instruction_file(path: Path, asset: str) -> str:
+    managed = read_text(asset).strip()
+    marker_start = "<!-- multi-agent-memory-managed:start -->"
+    marker_end = "<!-- multi-agent-memory-managed:end -->"
+    if marker_start not in managed or marker_end not in managed:
+        raise ValueError(f"instruction asset has invalid management markers: {asset}")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    current = path.read_text(encoding="utf-8") if path.exists() else ""
+    if (marker_start in current) != (marker_end in current):
+        raise ValueError(f"instruction file has an incomplete management block: {path}")
+    pattern = re.compile(re.escape(marker_start) + r".*?" + re.escape(marker_end), re.S)
+    if pattern.search(current):
+        updated = pattern.sub(managed, current).rstrip() + "\n"
+    else:
+        separator = "\n\n" if current.strip() else ""
+        updated = current.rstrip() + separator + managed + "\n"
+    if updated == current:
+        return f"already installed: {path}"
+    backup = _backup(path) if path.exists() else None
+    path.write_text(updated, encoding="utf-8")
+    return f"updated: {path}" + (f" (backup: {backup})" if backup else "")
+
+
 def install_agent(agent: str, *, force: bool = False, home: Path | None = None) -> list[str]:
     """Install one adapter or all adapters and return human-readable results."""
 
@@ -73,19 +101,23 @@ def install_agent(agent: str, *, force: bool = False, home: Path | None = None) 
         "codex": root / ".codex" / "hooks.json",
         "pi": root / ".pi" / "agent" / "extensions" / "agent-memory.js",
         "opencode": root / ".config" / "opencode" / "plugins" / "agent-memory.js",
+        "claude": root / ".claude" / "settings.json",
     }
     if agent == "all":
-        agents = ("codex", "pi", "opencode")
+        agents = ("codex", "pi", "opencode", "claude")
     elif agent in targets:
         agents = (agent,)
     else:
-        raise ValueError(f"unknown agent: {agent}; choose codex, pi, opencode, or all")
+        raise ValueError(f"unknown agent: {agent}; choose codex, pi, opencode, claude, or all")
     results = []
     for current in agents:
         if current == "codex":
             results.append(_merge_codex(targets[current], force=force))
         elif current == "pi":
             results.append(_write_new(targets[current], "// multi-agent-memory-managed\n" + read_text("pi-agent-memory.js"), force=force))
-        else:
+        elif current == "opencode":
             results.append(_write_new(targets[current], "// multi-agent-memory-managed\n" + read_text("opencode-agent-memory.js"), force=force))
+        else:
+            results.append(_merge_hooks(targets[current], "claude-hooks.json"))
+            results.append(_merge_instruction_file(root / ".claude" / "CLAUDE.md", "claude-code.md"))
     return results

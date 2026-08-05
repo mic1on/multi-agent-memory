@@ -35,3 +35,15 @@ extension API supplies the current working directory to the CLI.
 
 Copy opencode/agent-memory.js to the OpenCode plugins directory and restart
 OpenCode. The plugin caches context per session to avoid repeated index reads.
+
+## Claude Code
+
+Install the Claude Code adapter from the published package:
+
+    mam install-agent --agent claude
+
+This merges SessionStart and Stop hooks into ~/.claude/settings.json and adds a
+managed protocol block to ~/.claude/CLAUDE.md. Existing settings and user
+instructions are preserved. Restart Claude Code after the adapter changes.
+
+The package does not currently provide Hermes or OpenClaw adapters.

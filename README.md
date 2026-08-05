@@ -1,6 +1,6 @@
 # multi-agent-memory
 
-Shared, local-first long-term memory for Codex, Pi, OpenCode, and other agent CLIs.
+Shared, local-first long-term memory for Codex, Pi, OpenCode, Claude Code, and other agent CLIs.
 
 The project gives multiple agent clients one human-readable memory Vault. You
 can open it in Obsidian, review proposed memories, and keep confirmed
@@ -13,7 +13,7 @@ preferences and project decisions available across tools.
 - recalls confirmed global and project-scoped memories at agent startup;
 - keeps new memories as candidates until a human confirms them;
 - saves concise session summaries and crash-recovery receipts;
-- provides thin Codex, Pi, and OpenCode adapters;
+- provides thin Codex, Pi, OpenCode, and Claude Code adapters;
 - has no network service, telemetry, or hosted memory dependency.
 
 The important boundary is deliberate: adapters can automatically recall memory,
@@ -77,9 +77,12 @@ contain adapter or protocol changes:
     mam install-agent --agent codex
     mam install-agent --agent pi
     mam install-agent --agent opencode
+    mam install-agent --agent claude
 
-Codex hooks are merged and unrelated hooks are preserved. Pi and OpenCode
-adapter files managed by this project are backed up before replacement. If an
+Codex and Claude Code hooks are merged and unrelated settings/hooks are
+preserved. Pi and OpenCode adapter files managed by this project are backed up
+before replacement. Claude Code's managed protocol block in CLAUDE.md is
+updated in place while user-authored instructions remain intact. If an
 existing Pi or OpenCode file was installed manually or has no project marker,
 the command refuses to overwrite it; inspect the file first, then explicitly
 use the force option only if replacing it is intended. Restart the affected
@@ -183,7 +186,11 @@ without a checkout:
     mam install-agent --agent codex
     mam install-agent --agent pi
     mam install-agent --agent opencode
+    mam install-agent --agent claude
     mam install-agent --agent all
+
+The supported dedicated adapters are Codex, Pi, OpenCode, and Claude Code.
+Hermes and OpenClaw are intentionally not included in this release.
 
 All adapters call the memoryctl executable from PATH. They do not include
 machine-specific paths. At shutdown they write a pending receipt only if
