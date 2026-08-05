@@ -16,6 +16,7 @@ function run(args, cwd) {
 
 export const AgentMemoryPlugin = async ({ directory }) => {
   const cache = new Map()
+  await run(["recover"], directory)
   return {
     "experimental.chat.system.transform": async (input, output) => {
       const key = input.sessionID || "__global__"
