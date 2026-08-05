@@ -1,311 +1,136 @@
 # multi-agent-memory
 
+Local-first, shared long-term memory for Codex, Pi, OpenCode, Claude Code, and other agent CLIs.
+
+All agents can use the same human-readable Markdown Vault, including global preferences, project decisions, and reusable learnings. The SQLite index is only a rebuildable local search cache. There is no hosted service, telemetry, or automatic upload.
+
 中文文档：[README.zh-CN.md](README.zh-CN.md)
-
-Shared, local-first long-term memory for Codex, Pi, OpenCode, Claude Code, and other agent CLIs.
-
-The project gives multiple agent clients one human-readable memory Vault. You
-can open it in Obsidian, review proposed memories, and keep confirmed
-preferences and project decisions available across tools.
-
-## What it does
-
-- stores Markdown in an Obsidian-compatible Vault;
-- uses SQLite FTS5 only as a rebuildable local search cache;
-- recalls confirmed global and project-scoped memories at agent startup;
-- keeps new memories as candidates until a human confirms them;
-- saves concise session summaries and crash-recovery receipts;
-- provides thin Codex, Pi, OpenCode, and Claude Code adapters;
-- has no network service, telemetry, or hosted memory dependency.
-
-The important boundary is deliberate: adapters can automatically recall memory,
-but they do not silently summarize arbitrary transcripts. For durable memory,
-ask the agent to summarize a meaningful cycle or use a natural-language memory
-command.
 
 ## Install
 
-After the package is published to PyPI, the shortest daily command is mam.
-For a one-shot run without cloning this repository, use uvx with the package
-selected explicitly:
+Requires Python 3.11+. The recommended installation uses [uv](https://docs.astral.sh/uv/):
 
-    uvx --from multi-agent-memory mam init
-    uvx --from multi-agent-memory mam status
-    uvx --from multi-agent-memory mam context "project decisions"
+~~~bash
+uv tool install multi-agent-memory
+mam init
+mam status
+~~~
 
-For repeated use, install the CLI once with uv tool:
+For one-off commands:
 
-    uv tool install multi-agent-memory
-    mam init
+~~~bash
+uvx --from multi-agent-memory mam status
+~~~
 
-The longer multi-agent-memory command and the original memoryctl command remain
-available as aliases:
+### Install an agent adapter
 
-    multi-agent-memory status
-    memoryctl status
+Install one adapter, all adapters, or choose interactively:
 
-Requires Python 3.11 or newer. For contributors who want to work from source,
-the setup uses uv:
+~~~bash
+mam install --agent pi
+mam install --all
+mam install
+~~~
 
-    git clone https://github.com/YOUR-USERNAME/multi-agent-memory.git
-    cd multi-agent-memory
-    uv sync
-    uv run mam init
+You can also ask the current agent:
 
-For a global CLI installation from a local checkout:
+> Install and configure multi-agent-memory for the current agent. Use uv tool install multi-agent-memory, preserve existing configuration, run mam init, install only the current agent's adapter with mam install --agent ..., run mam status, and tell me whether a restart is needed. Do not use sudo, overwrite unmanaged files, or read and upload complete transcripts, credentials, tokens, cookies, or private keys.
 
-    uv tool install .
-    mam init
-### Let an agent install it for you
+Supported adapters:
 
-If you prefer natural language, copy this prompt to the Codex, Pi, OpenCode, or
-Claude Code session you want to configure:
+| Agent | Installation |
+| --- | --- |
+| Codex | mam install --agent codex |
+| Pi | mam install --agent pi |
+| OpenCode | mam install --agent opencode |
+| Claude Code | mam install --agent claude |
 
-```text
-Install and configure multi-agent-memory for me.
+Restart the agent after installing or upgrading its adapter. Hermes and OpenClaw are not supported yet.
 
-Use uv tool install multi-agent-memory; do not git clone or use sudo. Identify
-whether this is Codex, Pi, OpenCode, or Claude Code, and install only the
-current adapter with mam install --agent codex|pi|opencode|claude. Use the
-existing AGENT_MEMORY_VAULT when set; otherwise show me the Vault path before
-running mam init. Preserve existing agent configuration, merge hooks/settings,
-and stop if an unmanaged or ambiguous file would be overwritten. Do not read,
-upload, or save complete sessions, credentials, tokens, cookies, or private
-keys. Run mam status and mam protocol at the end, report the installation
-locations, and tell me whether I need to restart the agent. Do not modify
-project files without my approval.
-```
+## Everyday use
 
-中文用户也可以直接说：
+Ask a connected agent in natural language:
 
-```text
-帮我安装并配置 multi-agent-memory：使用 uv tool install，不要 clone 或使用 sudo；
-识别当前是 Codex、Pi、OpenCode 还是 Claude Code，只安装当前适配器；保留已有配置，
-不要读取或上传完整会话；使用 mam init 和 mam status 验证；最后告诉我安装位置、
-是否需要重启，以及如何用自然语言总结、记住、确认、忘掉和回忆记忆。
-```
+~~~text
+帮我总结这轮记忆
+记住：使用中文沟通，回答先给结论
+确认刚才那条记忆
+忘掉关于部署方式的记忆
+回忆关于这个项目的决策
+~~~
 
-完整版本见 [docs/agent-install-prompt.md](docs/agent-install-prompt.md)。
+Or use the CLI directly:
+
+~~~bash
+mam context
+mam propose --type preferences --text "Use Chinese and lead with the conclusion."
+mam search "deployment" --include-candidates
+mam confirm MEMORY_ID
+mam forget MEMORY_ID
+~~~
+
+New memories are candidates and do not affect recall until confirmed. mam forget marks a memory deprecated; it remains auditable.
+
+## Global and project memory
+
+Global memories apply everywhere. Project memories apply when the agent is inside the matching Git checkout:
+
+~~~bash
+mam propose --type project \
+  --text "Batch jobs must report resolved and unresolved items."
+
+mam propose --type project --project my-app \
+  --text "Database migrations must include a rollback plan."
+~~~
+
+mam context combines global memories with memories for the current project.
+
+## Vault and privacy
+
+The Markdown Vault is the source of truth and can be opened in Obsidian. Set its location with environment variables:
+
+~~~bash
+export AGENT_MEMORY_VAULT="$HOME/Documents/Obsidian/AgentMemory"
+export AGENT_MEMORY_STATE_DIR="$HOME/.local/share/multi-agent-memory"
+mam init
+~~~
+
+Adapters recall confirmed memories automatically. They do not silently summarize arbitrary transcripts. Ask the agent to summarize a meaningful work cycle, or provide a summary file:
+
+~~~bash
+mam session-summary --file summary.md
+~~~
+
+Do not store or commit credentials, API keys, cookies, private keys, complete transcripts, the Vault, or the SQLite index. For permanent deletion, remove the Markdown note and rebuild the index:
+
+~~~bash
+mam rebuild-index
+~~~
 
 ## Upgrade
 
-For a persistent installation made with uv tool, upgrade the CLI from PyPI:
+~~~bash
+uv tool upgrade multi-agent-memory
+mam install --all
+mam status
+~~~
 
-    uv tool upgrade multi-agent-memory
-    mam --help
-    mam status
+If the tool was installed with an exact version pin, use:
 
-The package provides the mam, multi-agent-memory, and memoryctl command names;
-upgrading the package updates all three entry points together.
+~~~bash
+uv tool install --force multi-agent-memory@latest
+~~~
 
-If you use the one-shot uvx form, force uv to refresh its cached package:
-
-    uvx --refresh --from multi-agent-memory mam status
-
-Adapter files are separate from the Python package installation. After an
-upgrade, synchronize the adapter for the current agent when the release may
-contain adapter or protocol changes:
-
-    mam install --agent codex
-    mam install --agent pi
-    mam install --agent opencode
-    mam install --agent claude
-
-Codex and Claude Code hooks are merged and unrelated settings/hooks are
-preserved. Pi and OpenCode adapter files managed by this project are backed up
-before replacement. Claude Code's managed protocol block in CLAUDE.md is
-updated in place while user-authored instructions remain intact. If an
-existing Pi or OpenCode file was installed manually or has no project marker,
-the command refuses to overwrite it; inspect the file first, then explicitly
-use the force option only if replacing it is intended. Restart the affected
-agent after updating its adapter.
-
-Upgrading the package does not rewrite the Vault, delete memories, or upload
-session data. Run mam rebuild-index only when release notes request an index
-rebuild or after manually editing the Vault. If a future release requires a
-Vault migration, it will be called out separately in its release notes.
-
-For a local source checkout used by contributors, update the checkout and
-reinstall the tool:
-
-    git pull --ff-only
-    uv tool install --force .
-
-## Configure the Vault
-
-Create a settings file from the example:
-
-    mkdir -p ~/.config/multi-agent-memory
-    cp config.example.yaml ~/.config/multi-agent-memory/settings.yaml
-
-Then edit vault to your Obsidian Vault path and pass it explicitly:
-
-    mam --config ~/.config/multi-agent-memory/settings.yaml init
-
-Or configure with environment variables:
-
-    export AGENT_MEMORY_VAULT="$HOME/Documents/Obsidian/AgentMemory"
-    export AGENT_MEMORY_STATE_DIR="$HOME/.local/share/multi-agent-memory"
-
-Configuration precedence is command-line config file, environment variables,
-then platform defaults. The Vault is user data; keep it outside this Git repo.
-
-## Vault layout
-
-    00-profile/     confirmed global preferences
-    10-projects/    project-scoped memories
-    20-decisions/   confirmed decisions
-    30-learnings/   reusable lessons
-    90-sessions/    concise session summaries
-    inbox/          candidates awaiting review
-    .memory/pending crash-recovery receipts
-
-Markdown is authoritative. Editing a Markdown note in Obsidian takes effect on
-the next search or context call because the SQLite cache is rebuilt from the
-Vault.
-
-## Natural-language use
-
-After installing the protocol and an adapter, talk to any connected agent:
-
-    帮我总结这轮记忆
-    记住：使用中文沟通，先给结论
-    确认刚才那条记忆
-    忘掉关于部署方式的记忆
-    回忆关于这个项目的决策
-
-The agent translates these into CLI calls and reports the result. You do not
-need to open a terminal. Candidates remain inactive until confirmation.
-
-The equivalent CLI commands are:
-
-    mam session-summary --text "## Outcome ..."
-    mam propose --type preferences --text "Use Chinese and lead with the conclusion."
-    mam search "deployment" --include-candidates
-    mam confirm PENDING_MEMORY_ID
-    mam forget MEMORY_ID
-    mam context "project decisions"
-
-## Project-level memory
-
-Project memories use --type project and a project name. When run inside a
-Git checkout, memoryctl propose --type project detects the nearest
-directory containing .git and records its name. You can always override it:
-
-    mam propose --type project --project my-app \
-      --text "Batch jobs must report resolved and unresolved items."
-
-Global memories have scope: global; project memories have scope: project
-and a project field. memoryctl context includes global memories plus
-memories matching the current project.
-
-## Agent adapters
-
-See adapters/README.md for installation details.
-
-For a user-facing natural-language setup flow, copy
-docs/agent-install-prompt.md and send it to the agent CLI. It instructs the
-agent to install with uv, preserve existing configuration, select the current
-adapter, initialize the Vault, and verify the result.
-
-- Codex: merge adapters/codex/hooks.example.json into your hooks file.
-- Pi: copy adapters/pi/agent-memory.js into the extensions directory.
-- OpenCode: copy adapters/opencode/agent-memory.js into the plugins directory.
-
-After installing the published package, adapter installation is also available
-without a checkout:
-
-    mam install
-
-With no options, mam install opens an interactive multi-select menu. Use
-Up/Down to move, Space to select, and Enter to confirm. The menu includes
-Codex, Pi, OpenCode, Claude Code, and all.
-
-For scripts, CI, or agent instructions, use explicit options:
-
-    mam install --agent codex
-    mam install --agent pi --agent claude
-    mam install --all
-
-The previous command remains available as a compatibility alias:
-
-    mam install-agent --agent claude
-
-The supported dedicated adapters are Codex, Pi, OpenCode, and Claude Code.
-Hermes and OpenClaw are intentionally not included in this release.
-
-All adapters call the memoryctl executable from PATH. They do not include
-machine-specific paths. At shutdown they write a pending receipt only if
-AGENT_MEMORY_SUMMARY_FILE points to an explicitly prepared summary file.
-
-## Session summaries and automatic collection
-
-This system does not claim to automatically understand every message in a
-session. Automatic hooks can recover pending summaries and inject existing
-memory. The active agent must create a concise boundary summary, for example:
-
-    ## Outcome
-    Implemented the shared memory CLI.
-    ## Decisions
-    Markdown remains authoritative; candidates require confirmation.
-    ## Reusable learnings
-    Adapters should call the installed CLI instead of hard-coded paths.
-    ## Open questions
-    None.
-    ## Next action
-    Review the release diff.
-
-Then save it with mam session-summary --file summary.md or let an
-adapter consume the file named by AGENT_MEMORY_SUMMARY_FILE.
-
-## Safety and deletion
-
-Never commit your Vault, SQLite index, transcript, credentials, or agent
-configuration containing secrets. See docs/privacy.md.
-
-mam forget ID marks a note deprecated, so it is excluded from recall
-while remaining auditable. For permanent deletion, remove the Markdown file
-manually and run mam rebuild-index; also review your backups and sync
-history.
+Upgrading does not delete the Vault or memories. Managed adapter files are backed up when replaced; unrelated configuration is preserved.
 
 ## Development
 
-    uv sync
-    uv run pytest
-    python -m compileall src
-    node --check adapters/pi/agent-memory.js
-    node --check adapters/opencode/agent-memory.js
+~~~bash
+uv sync
+uv run pytest
+python -m compileall src
+node --check adapters/pi/agent-memory.js
+node --check adapters/opencode/agent-memory.js
+~~~
 
-The project targets Python 3.11+ and keeps runtime configuration in YAML when
-configuration is needed. Contributions should include focused tests and must
-not add personal Vault data.
-
-## Publishing to PyPI
-
-GitHub Actions runs the test matrix and builds wheel/sdist artifacts on pull
-requests and pushes. A release is published only from a tag matching v*, and
-the workflow checks that the tag version matches pyproject.toml before
-publishing.
-
-The workflow uses PyPI Trusted Publishing through GitHub OIDC; no PyPI token is
-stored in the repository. One maintainer must configure a PyPI pending
-publisher for the multi-agent-memory project with:
-
-- Owner: mic1on
-- Repository: multi-agent-memory
-- Workflow: release.yml
-- Environment: pypi
-
-Create the matching pypi environment in the GitHub repository settings before
-the first release. Then publish a version by updating version in
-pyproject.toml, committing it, and pushing a matching tag:
-
-    git tag v0.1.1
-    git push origin main v0.1.1
-
-The tag workflow runs tests, builds the distribution, verifies the tag/version
-match, and publishes to PyPI. Do not reuse a tag or version already published.
-
-## License
-
-MIT. See LICENSE.
+MIT License. See [LICENSE](LICENSE).
