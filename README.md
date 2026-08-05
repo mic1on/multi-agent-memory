@@ -55,8 +55,46 @@ For a global CLI installation from a local checkout:
     uv tool install .
     mam init
 
-The package uses Dynaconf for YAML and environment configuration. The CLI does
-not create a Vault until a command such as init or propose needs it.
+## Upgrade
+
+For a persistent installation made with uv tool, upgrade the CLI from PyPI:
+
+    uv tool upgrade multi-agent-memory
+    mam --help
+    mam status
+
+The package provides the mam, multi-agent-memory, and memoryctl command names;
+upgrading the package updates all three entry points together.
+
+If you use the one-shot uvx form, force uv to refresh its cached package:
+
+    uvx --refresh --from multi-agent-memory mam status
+
+Adapter files are separate from the Python package installation. After an
+upgrade, synchronize the adapter for the current agent when the release may
+contain adapter or protocol changes:
+
+    mam install-agent --agent codex
+    mam install-agent --agent pi
+    mam install-agent --agent opencode
+
+Codex hooks are merged and unrelated hooks are preserved. Pi and OpenCode
+adapter files managed by this project are backed up before replacement. If an
+existing Pi or OpenCode file was installed manually or has no project marker,
+the command refuses to overwrite it; inspect the file first, then explicitly
+use the force option only if replacing it is intended. Restart the affected
+agent after updating its adapter.
+
+Upgrading the package does not rewrite the Vault, delete memories, or upload
+session data. Run mam rebuild-index only when release notes request an index
+rebuild or after manually editing the Vault. If a future release requires a
+Vault migration, it will be called out separately in its release notes.
+
+For a local source checkout used by contributors, update the checkout and
+reinstall the tool:
+
+    git pull --ff-only
+    uv tool install --force .
 
 ## Configure the Vault
 

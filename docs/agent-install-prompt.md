@@ -64,3 +64,21 @@ The explicit agent value is codex, pi, opencode, or all. The installation comman
 refuses to overwrite unmanaged adapter files. The auto value is available as a deliberate
 all-adapters fallback for hosts that cannot identify themselves; an agent should prefer its
 own explicit value.
+## Natural-language upgrade prompt
+
+Users can later send this to the same agent:
+
+```text
+帮我升级 multi-agent-memory。
+
+请按以下要求执行：
+1. 如果是 uv tool 安装，执行 uv tool upgrade multi-agent-memory；如果只是一次性 uvx，
+   使用 uvx --refresh --from multi-agent-memory mam status 验证最新版。
+2. 不要 clone 仓库，不要使用 sudo，不要删除 Vault 或任何记忆文件。
+3. 先执行 mam status，再升级；升级后再次执行 mam status。
+4. 识别当前是 Codex、Pi 还是 OpenCode，并执行对应的
+   mam install-agent --agent codex|pi|opencode，同步适配器和协议。
+5. 保留现有配置。遇到没有项目标记的 Pi/OpenCode 文件，不要使用 --force，先报告并等待我的决定。
+6. 不要读取、上传或保存完整会话；不要自动确认候选记忆。
+7. 告诉我升级前后的状态、使用的命令、适配器是否更新，以及是否需要重启 Agent。
+```
