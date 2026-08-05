@@ -74,10 +74,10 @@ Adapter files are separate from the Python package installation. After an
 upgrade, synchronize the adapter for the current agent when the release may
 contain adapter or protocol changes:
 
-    mam install-agent --agent codex
-    mam install-agent --agent pi
-    mam install-agent --agent opencode
-    mam install-agent --agent claude
+    mam install --agent codex
+    mam install --agent pi
+    mam install --agent opencode
+    mam install --agent claude
 
 Codex and Claude Code hooks are merged and unrelated settings/hooks are
 preserved. Pi and OpenCode adapter files managed by this project are backed up
@@ -183,11 +183,21 @@ adapter, initialize the Vault, and verify the result.
 After installing the published package, adapter installation is also available
 without a checkout:
 
-    mam install-agent --agent codex
-    mam install-agent --agent pi
-    mam install-agent --agent opencode
+    mam install
+
+With no options, mam install opens an interactive multi-select menu. Use
+Up/Down to move, Space to select, and Enter to confirm. The menu includes
+Codex, Pi, OpenCode, Claude Code, and all.
+
+For scripts, CI, or agent instructions, use explicit options:
+
+    mam install --agent codex
+    mam install --agent pi --agent claude
+    mam install --all
+
+The previous command remains available as a compatibility alias:
+
     mam install-agent --agent claude
-    mam install-agent --agent all
 
 The supported dedicated adapters are Codex, Pi, OpenCode, and Claude Code.
 Hermes and OpenClaw are intentionally not included in this release.

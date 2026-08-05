@@ -74,3 +74,32 @@ def test_claude_code_refuses_incomplete_instruction_markers(tmp_path):
         assert "incomplete management block" in str(error)
     else:
         raise AssertionError("incomplete Claude Code block was modified")
+
+
+def test_install_command_supports_all_and_repeated_agents(tmp_path):
+    import os
+    import subprocess
+    import sys
+
+    env = os.environ.copy()
+    env["AGENT_MEMORY_VAULT"] = str(tmp_path / "vault")
+    env["AGENT_MEMORY_STATE_DIR"] = str(tmp_path / "state")
+    result = subprocess.run([sys.executable, "-m", "multi_agent_memory.cli", "install", "--agent", "pi", "--agent", "claude", "--home", str(tmp_path)], env=env, text=True, capture_output=True, check=True)
+    assert "agent-memory.js" in result.stdout
+    assert "CLAUDE.md" in result.stdout
+
+    all_result = subprocess.run([sys.executable, "-m", "multi_agent_memory.cli", "install-agent", "--agent", "all", "--home", str(tmp_path)], env=env, text=True, capture_output=True, check=True)
+    assert "already installed" in all_result.stdout
+
+
+def test_install_without_arguments_is_safe_in_noninteractive_mode(tmp_path):
+    import os
+    import subprocess
+    import sys
+
+    env = os.environ.copy()
+    env["AGENT_MEMORY_VAULT"] = str(tmp_path / "vault")
+    env["AGENT_MEMORY_STATE_DIR"] = str(tmp_path / "state")
+    result = subprocess.run([sys.executable, "-m", "multi_agent_memory.cli", "install", "--home", str(tmp_path)], env=env, text=True, capture_output=True)
+    assert result.returncode == 2
+    assert "--agent NAME or --all" in result.stderr

@@ -40,7 +40,7 @@ OpenCode. The plugin caches context per session to avoid repeated index reads.
 
 Install the Claude Code adapter from the published package:
 
-    mam install-agent --agent claude
+    mam install --agent claude
 
 This merges SessionStart and Stop hooks into ~/.claude/settings.json and adds a
 managed protocol block to ~/.claude/CLAUDE.md. Existing settings and user

@@ -16,7 +16,7 @@ Requirements:
    the default local Obsidian-compatible Vault path and show me the path before initialization.
 5. Run mam init. Do not read, upload, or print the contents of existing Vault notes.
 6. After identifying the current agent, install only its adapter: use
-   mam install-agent --agent codex, --agent pi, --agent opencode, or --agent claude.
+   mam install --agent codex, --agent pi, --agent opencode, or --agent claude.
    If you cannot identify the host agent, ask me whether to install codex, pi,
    opencode, claude, or all.
 7. Preserve unrelated configuration. Do not overwrite existing Codex hooks, Claude Code
@@ -59,7 +59,7 @@ The expected command sequence is:
     uv tool install multi-agent-memory
     mam --help
     mam init
-    mam install-agent --agent CURRENT_AGENT
+    mam install --agent CURRENT_AGENT
     mam status
     mam protocol
 
@@ -80,7 +80,7 @@ Users can later send this to the same agent:
 2. 不要 clone 仓库，不要使用 sudo，不要删除 Vault 或任何记忆文件。
 3. 先执行 mam status，再升级；升级后再次执行 mam status。
 4. 识别当前是 Codex、Pi、OpenCode 还是 Claude Code，并执行对应的
-   mam install-agent --agent codex|pi|opencode|claude，同步适配器和协议。
+   mam install --agent codex|pi|opencode|claude，同步适配器和协议。
 5. 保留现有配置。Claude Code 只合并 settings.json 并更新 CLAUDE.md 中的托管区块；
    遇到没有项目标记的 Pi/OpenCode 文件，不要使用 --force，先报告并等待我的决定。
 6. 不要读取、上传或保存完整会话；不要自动确认候选记忆。
