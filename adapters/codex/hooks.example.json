@@ -1,0 +1,21 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "",
+        "hooks": [
+          {"type": "command", "command": "memoryctl recover", "timeout": 5},
+          {"type": "command", "command": "memoryctl context", "timeout": 5}
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {"type": "command", "command": "memoryctl pending --session-id codex --summary-file \"$AGENT_MEMORY_SUMMARY_FILE\"", "timeout": 5}
+        ]
+      }
+    ]
+  }
+}

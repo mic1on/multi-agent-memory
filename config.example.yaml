@@ -1,0 +1,6 @@
+# Copy to ~/.config/multi-agent-memory/settings.yaml and edit the Vault path.
+# Environment variables with AGENT_MEMORY_ prefix override these keys.
+vault: ~/Documents/Obsidian/AgentMemory
+state_dir: ~/.local/share/multi-agent-memory
+index_path: ~/.local/share/multi-agent-memory/memory.sqlite3
+recall_limit: 8
