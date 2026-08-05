@@ -22,6 +22,11 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/multi_agent_memory"]
+include = [
+  "src/multi_agent_memory/**",
+  "adapters/**",
+  "AGENT-MEMORY.md",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

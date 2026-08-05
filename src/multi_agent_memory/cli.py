@@ -7,7 +7,9 @@ import sys
 from pathlib import Path
 from typing import Any
 from .config import Settings
+from .install import install_agent
 from .project import detect_project
+from .resources import read_text
 from .store import MEMORY_TYPES, Vault
 
 def _parser() -> argparse.ArgumentParser:
@@ -46,6 +48,11 @@ def _parser() -> argparse.ArgumentParser:
     pending.add_argument("--summary-file", "--summary_file", dest="summary_file")
     pending.add_argument("--title")
     sub.add_parser("recover", help="promote pending summaries")
+    sub.add_parser("protocol", help="print the natural-language agent protocol")
+    install = sub.add_parser("install-agent", help="install an agent adapter")
+    install.add_argument("--agent", required=True, choices=("auto", "codex", "pi", "opencode", "all"))
+    install.add_argument("--force", action="store_true", help="replace a managed adapter after creating a backup")
+    install.add_argument("--home", help=argparse.SUPPRESS)
     return parser
 
 def _payload(path: str | None, text: str | None) -> dict[str, Any]:
@@ -128,6 +135,13 @@ def main(argv: list[str] | None = None) -> int:
             print(path or "no summary supplied; nothing saved")
         elif args.command == "recover":
             print(f"recovered {vault.recover()} pending summaries")
+        elif args.command == "protocol":
+            print(read_text("protocol.md"), end="")
+        elif args.command == "install-agent":
+            agent = "all" if args.agent == "auto" else args.agent
+            home = Path(args.home).expanduser() if args.home else None
+            for result in install_agent(agent, force=args.force, home=home):
+                print(result)
         return 0
     except (OSError, ValueError, TypeError) as error:
         print(f"memoryctl: {error}", file=sys.stderr)

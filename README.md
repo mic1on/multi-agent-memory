@@ -130,9 +130,22 @@ memories matching the current project.
 
 See adapters/README.md for installation details.
 
+For a user-facing natural-language setup flow, copy
+docs/agent-install-prompt.md and send it to the agent CLI. It instructs the
+agent to install with uv, preserve existing configuration, select the current
+adapter, initialize the Vault, and verify the result.
+
 - Codex: merge adapters/codex/hooks.example.json into your hooks file.
 - Pi: copy adapters/pi/agent-memory.js into the extensions directory.
 - OpenCode: copy adapters/opencode/agent-memory.js into the plugins directory.
+
+After installing the published package, adapter installation is also available
+without a checkout:
+
+    mam install-agent --agent codex
+    mam install-agent --agent pi
+    mam install-agent --agent opencode
+    mam install-agent --agent all
 
 All adapters call the memoryctl executable from PATH. They do not include
 machine-specific paths. At shutdown they write a pending receipt only if
