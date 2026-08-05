@@ -1,5 +1,7 @@
 # multi-agent-memory
 
+中文文档：[README.zh-CN.md](README.zh-CN.md)
+
 Shared, local-first long-term memory for Codex, Pi, OpenCode, Claude Code, and other agent CLIs.
 
 The project gives multiple agent clients one human-readable memory Vault. You
@@ -54,6 +56,36 @@ For a global CLI installation from a local checkout:
 
     uv tool install .
     mam init
+### Let an agent install it for you
+
+If you prefer natural language, copy this prompt to the Codex, Pi, OpenCode, or
+Claude Code session you want to configure:
+
+```text
+Install and configure multi-agent-memory for me.
+
+Use uv tool install multi-agent-memory; do not git clone or use sudo. Identify
+whether this is Codex, Pi, OpenCode, or Claude Code, and install only the
+current adapter with mam install --agent codex|pi|opencode|claude. Use the
+existing AGENT_MEMORY_VAULT when set; otherwise show me the Vault path before
+running mam init. Preserve existing agent configuration, merge hooks/settings,
+and stop if an unmanaged or ambiguous file would be overwritten. Do not read,
+upload, or save complete sessions, credentials, tokens, cookies, or private
+keys. Run mam status and mam protocol at the end, report the installation
+locations, and tell me whether I need to restart the agent. Do not modify
+project files without my approval.
+```
+
+中文用户也可以直接说：
+
+```text
+帮我安装并配置 multi-agent-memory：使用 uv tool install，不要 clone 或使用 sudo；
+识别当前是 Codex、Pi、OpenCode 还是 Claude Code，只安装当前适配器；保留已有配置，
+不要读取或上传完整会话；使用 mam init 和 mam status 验证；最后告诉我安装位置、
+是否需要重启，以及如何用自然语言总结、记住、确认、忘掉和回忆记忆。
+```
+
+完整版本见 [docs/agent-install-prompt.md](docs/agent-install-prompt.md)。
 
 ## Upgrade
 
