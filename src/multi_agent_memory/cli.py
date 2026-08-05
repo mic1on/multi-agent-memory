@@ -11,7 +11,7 @@ from .project import detect_project
 from .store import MEMORY_TYPES, Vault
 
 def _parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="memoryctl", description="Shared local-first memory for AI agent CLIs")
+    parser = argparse.ArgumentParser(prog="mam", description="Shared local-first memory for AI agent CLIs")
     parser.add_argument("--config", help="YAML configuration file")
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("init", help="create the Vault layout and search index")

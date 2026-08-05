@@ -11,6 +11,14 @@ They are intentionally thin:
 The adapters never read arbitrary transcript files, send data to a service, or
 promote candidate memories. Copy the relevant files into the agent supported
 extension or hooks directory and merge them with existing configuration.
+For a published release, install the command once before enabling an adapter:
+
+    uv tool install multi-agent-memory
+    mam status
+
+The one-shot uvx --from multi-agent-memory mam ... form is excellent for
+manual commands, but a persistent uv tool installation is more reliable for
+agent hooks that run repeatedly.
 
 ## Codex
 

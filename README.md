@@ -23,17 +23,37 @@ command.
 
 ## Install
 
-Requires Python 3.11 or newer. The recommended setup uses uv:
+After the package is published to PyPI, the shortest daily command is mam.
+For a one-shot run without cloning this repository, use uvx with the package
+selected explicitly:
+
+    uvx --from multi-agent-memory mam init
+    uvx --from multi-agent-memory mam status
+    uvx --from multi-agent-memory mam context "project decisions"
+
+For repeated use, install the CLI once with uv tool:
+
+    uv tool install multi-agent-memory
+    mam init
+
+The longer multi-agent-memory command and the original memoryctl command remain
+available as aliases:
+
+    multi-agent-memory status
+    memoryctl status
+
+Requires Python 3.11 or newer. For contributors who want to work from source,
+the setup uses uv:
 
     git clone https://github.com/YOUR-USERNAME/multi-agent-memory.git
     cd multi-agent-memory
     uv sync
-    uv run memoryctl init
+    uv run mam init
 
-For a global CLI installation:
+For a global CLI installation from a local checkout:
 
     uv tool install .
-    memoryctl init
+    mam init
 
 The package uses Dynaconf for YAML and environment configuration. The CLI does
 not create a Vault until a command such as init or propose needs it.
@@ -47,7 +67,7 @@ Create a settings file from the example:
 
 Then edit vault to your Obsidian Vault path and pass it explicitly:
 
-    memoryctl --config ~/.config/multi-agent-memory/settings.yaml init
+    mam --config ~/.config/multi-agent-memory/settings.yaml init
 
 Or configure with environment variables:
 
@@ -86,12 +106,12 @@ need to open a terminal. Candidates remain inactive until confirmation.
 
 The equivalent CLI commands are:
 
-    memoryctl session-summary --text "## Outcome ..."
-    memoryctl propose --type preferences --text "Use Chinese and lead with the conclusion."
-    memoryctl search "deployment" --include-candidates
-    memoryctl confirm PENDING_MEMORY_ID
-    memoryctl forget MEMORY_ID
-    memoryctl context "project decisions"
+    mam session-summary --text "## Outcome ..."
+    mam propose --type preferences --text "Use Chinese and lead with the conclusion."
+    mam search "deployment" --include-candidates
+    mam confirm PENDING_MEMORY_ID
+    mam forget MEMORY_ID
+    mam context "project decisions"
 
 ## Project-level memory
 
@@ -99,7 +119,7 @@ Project memories use --type project and a project name. When run inside a
 Git checkout, memoryctl propose --type project detects the nearest
 directory containing .git and records its name. You can always override it:
 
-    memoryctl propose --type project --project my-app \
+    mam propose --type project --project my-app \
       --text "Batch jobs must report resolved and unresolved items."
 
 Global memories have scope: global; project memories have scope: project
@@ -135,7 +155,7 @@ memory. The active agent must create a concise boundary summary, for example:
     ## Next action
     Review the release diff.
 
-Then save it with memoryctl session-summary --file summary.md or let an
+Then save it with mam session-summary --file summary.md or let an
 adapter consume the file named by AGENT_MEMORY_SUMMARY_FILE.
 
 ## Safety and deletion
@@ -143,9 +163,9 @@ adapter consume the file named by AGENT_MEMORY_SUMMARY_FILE.
 Never commit your Vault, SQLite index, transcript, credentials, or agent
 configuration containing secrets. See docs/privacy.md.
 
-memoryctl forget ID marks a note deprecated, so it is excluded from recall
+mam forget ID marks a note deprecated, so it is excluded from recall
 while remaining auditable. For permanent deletion, remove the Markdown file
-manually and run memoryctl rebuild-index; also review your backups and sync
+manually and run mam rebuild-index; also review your backups and sync
 history.
 
 ## Development

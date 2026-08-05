@@ -9,6 +9,8 @@ authors = [{ name = "Multi-Agent Memory contributors" }]
 dependencies = ["dynaconf>=3.2,<4"]
 
 [project.scripts]
+mam = "multi_agent_memory.cli:main"
+multi-agent-memory = "multi_agent_memory.cli:main"
 memoryctl = "multi_agent_memory.cli:main"
 
 [dependency-groups]
