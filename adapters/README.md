@@ -1,10 +1,10 @@
 # Agent adapters
 
-All adapters assume that the memoryctl command is installed and available on PATH.
+All adapters assume that the mam command is installed and available on PATH.
 They are intentionally thin:
 
-- startup runs memoryctl recover;
-- the agent prompt receives memoryctl context output;
+- startup runs mam recover;
+- the agent receives the mam protocol and confirmed context;
 - shutdown writes a pending receipt only when AGENT_MEMORY_SUMMARY_FILE
   points to an explicitly created summary file.
 

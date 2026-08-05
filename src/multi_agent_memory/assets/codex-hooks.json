@@ -5,7 +5,8 @@
         "matcher": "",
         "hooks": [
           {"type": "command", "command": "mam recover", "timeout": 5},
-          {"type": "command", "command": "mam context", "timeout": 5}
+          {"type": "command", "command": "mam context", "timeout": 5},
+          {"type": "command", "command": "mam protocol", "timeout": 5}
         ]
       }
     ],

@@ -16,6 +16,7 @@ function run(args, cwd) {
 
 export const AgentMemoryPlugin = async ({ directory }) => {
   const cache = new Map()
+  const protocol = await run(["protocol"], directory)
   await run(["recover"], directory)
   return {
     "experimental.chat.system.transform": async (input, output) => {
@@ -25,6 +26,7 @@ export const AgentMemoryPlugin = async ({ directory }) => {
         context = await run(["context"], directory)
         cache.set(key, context)
       }
+      if (protocol) output.system.push(protocol)
       if (context) output.system.push(context)
     },
   }

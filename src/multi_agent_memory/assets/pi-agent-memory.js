@@ -49,9 +49,15 @@ export default function agentMemory(pi) {
   })
 
   pi.on("before_agent_start", async (event, ctx) => {
-    const result = await run(["context"], ctx.cwd)
-    if (result.code !== 0 || !result.stdout.trim()) return
-    return { systemPrompt: event.systemPrompt + "\n\n" + result.stdout.trim() }
+    const [protocol, context] = await Promise.all([
+      run(["protocol"], ctx.cwd),
+      run(["context"], ctx.cwd),
+    ])
+    const injected = [protocol, context]
+      .filter((result) => result.code === 0 && result.stdout.trim())
+      .map((result) => result.stdout.trim())
+    if (!injected.length) return
+    return { systemPrompt: event.systemPrompt + "\n\n" + injected.join("\n\n") }
   })
 
   pi.on("session_shutdown", async (_event, ctx) => {

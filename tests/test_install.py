@@ -13,6 +13,7 @@ def test_install_all_adapters_into_an_isolated_home(tmp_path):
     commands = [hook["command"] for block in hooks["hooks"]["SessionStart"] for hook in block["hooks"]]
     assert "mam context" in commands
     assert "mam recover" in commands
+    assert "mam protocol" in commands
 
 
 def test_install_is_idempotent_and_refuses_unmanaged_files(tmp_path):
@@ -30,7 +31,10 @@ def test_install_is_idempotent_and_refuses_unmanaged_files(tmp_path):
 
 
 def test_protocol_is_shipped_as_a_package_resource():
-    assert "记住" in read_text("protocol.md")
+    protocol = read_text("protocol.md")
+    assert "记住" in protocol
+    assert "写入偏好记忆" in protocol
+    assert "Other memory tools may coexist" in protocol
 
 
 def test_claude_code_install_merges_settings_and_preserves_claude_md(tmp_path):
@@ -47,10 +51,12 @@ def test_claude_code_install_merges_settings_and_preserves_claude_md(tmp_path):
     assert data["env"]["KEEP_ME"] == "yes"
     assert data["hooks"]["UserHook"] == []
     assert "mam context" in commands
+    assert "mam protocol" in commands
     assert any("CLAUDE.md" in result for result in results)
     text = instructions.read_text(encoding="utf-8")
     assert "Keep this text." in text
     assert "multi-agent-memory-managed:start" in text
+    assert "写入偏好记忆" in text
 
 
 def test_claude_code_install_updates_only_managed_instruction_block(tmp_path):
