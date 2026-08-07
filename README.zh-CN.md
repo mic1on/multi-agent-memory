@@ -111,9 +111,12 @@ mam rebuild-index
 
 ~~~bash
 uv tool upgrade multi-agent-memory
-mam install --all
 mam status
 ~~~
+
+升级后，下一次 Agent 启动时会自动同步之前由 mam 安装的适配器。只有安装新
+Agent 或处理冲突时才需要执行 `mam install --agent NAME`。如需关闭自动同步，
+设置 `AGENT_MEMORY_AUTO_SYNC_ADAPTERS=false`。
 
 如果工具是精确版本安装的，使用：
 

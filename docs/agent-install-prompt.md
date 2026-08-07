@@ -79,10 +79,10 @@ Users can later send this to the same agent:
    使用 uvx --refresh --from multi-agent-memory mam status 验证最新版。
 2. 不要 clone 仓库，不要使用 sudo，不要删除 Vault 或任何记忆文件。
 3. 先执行 mam status，再升级；升级后再次执行 mam status。
-4. 识别当前是 Codex、Pi、OpenCode 还是 Claude Code，并执行对应的
-   mam install --agent codex|pi|opencode|claude，同步适配器和协议。
+4. 升级后，适配器会在下一次 Agent 启动时自动同步。先运行 mam status；如果报告
+   conflict 或 error，不要使用 --force，先报告并等待我的决定。
 5. 保留现有配置。Claude Code 只合并 settings.json 并更新 CLAUDE.md 中的托管区块；
-   遇到没有项目标记的 Pi/OpenCode 文件，不要使用 --force，先报告并等待我的决定。
+   只有安装新 Agent 时才执行 mam install --agent codex|pi|opencode|claude。
 6. 不要读取、上传或保存完整会话；不要自动确认候选记忆。
 7. 告诉我升级前后的状态、使用的命令、适配器是否更新，以及是否需要重启 Agent。
 ```

@@ -19,3 +19,11 @@ def test_invalid_recall_limit_is_rejected(tmp_path):
         assert "recall_limit" in str(error)
     else:
         raise AssertionError("invalid recall limit was accepted")
+
+
+def test_auto_sync_adapters_can_be_disabled(tmp_path, monkeypatch):
+    config = tmp_path / "settings.yaml"
+    config.write_text("auto_sync_adapters: false\n", encoding="utf-8")
+    monkeypatch.delenv("AGENT_MEMORY_AUTO_SYNC_ADAPTERS", raising=False)
+
+    assert Settings.load(config).auto_sync_adapters is False

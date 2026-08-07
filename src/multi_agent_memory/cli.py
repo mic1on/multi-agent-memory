@@ -14,16 +14,19 @@ try:
 except ImportError:  # pragma: no cover - Windows uses the non-interactive form.
     termios = None
     tty = None
+from . import __version__
 from .config import Settings
-from .install import install_agent
+from .install import adapter_status, install_agent, sync_adapters
 from .project import detect_project
 from .resources import read_text
 from .store import MEMORY_TYPES, Vault
 
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="mam", description="Shared local-first memory for AI agent CLIs")
+    parser.add_argument("-v", "--version", action="version", version=__version__)
     parser.add_argument("--config", help="YAML configuration file")
     sub = parser.add_subparsers(dest="command", required=True)
+    sub.add_parser("version", help="show the installed mam version")
     sub.add_parser("init", help="create the Vault layout and search index")
     sub.add_parser("status", help="show Vault and index status")
     for name in ("search", "recall", "context"):
@@ -153,12 +156,21 @@ def _print_rows(rows: list[dict[str, str]], prompt: bool) -> None:
 
 def main(argv: list[str] | None = None) -> int:
     args = _parser().parse_args(argv)
+    if args.command == "version":
+        print(__version__)
+        return 0
     try:
         vault = Vault(Settings.load(args.config))
         if args.command == "init":
             print(f"initialized {vault.root}; indexed {vault.rebuild()} documents")
         elif args.command == "status":
-            print(json.dumps(vault.status(), ensure_ascii=False, indent=2))
+            status = vault.status()
+            adapter_info = adapter_status(state_dir=vault.settings.state_dir)
+            status["adapters"] = adapter_info["adapters"]
+            status["adapter_manifest"] = adapter_info["manifest"]
+            if "error" in adapter_info:
+                status["adapter_error"] = adapter_info["error"]
+            print(json.dumps(status, ensure_ascii=False, indent=2))
         elif args.command in {"search", "recall", "context"}:
             project = args.project
             if args.command == "context" and not project:
@@ -201,13 +213,19 @@ def main(argv: list[str] | None = None) -> int:
             path = vault.pending({"session_id": args.session_id, "summary": summary, "title": args.title})
             print(path or "no summary supplied; nothing saved")
         elif args.command == "recover":
-            print(f"recovered {vault.recover()} pending summaries")
+            recovered = vault.recover()
+            if vault.settings.auto_sync_adapters:
+                try:
+                    sync_adapters(state_dir=vault.settings.state_dir)
+                except (OSError, ValueError, TypeError, sqlite3.Error):
+                    pass
+            print(f"recovered {recovered} pending summaries")
         elif args.command == "protocol":
             print(read_text("protocol.md"), end="")
         elif args.command in {"install", "install-agent"}:
             home = Path(args.home).expanduser() if args.home else None
             for agent in _selected_agents(args):
-                for result in install_agent(agent, force=args.force, home=home):
+                for result in install_agent(agent, force=args.force, home=home, state_dir=vault.settings.state_dir):
                     print(result)
         return 0
     except (OSError, ValueError, TypeError, sqlite3.Error) as error:

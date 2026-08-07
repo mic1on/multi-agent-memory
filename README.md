@@ -111,9 +111,13 @@ mam rebuild-index
 
 ~~~bash
 uv tool upgrade multi-agent-memory
-mam install --all
 mam status
 ~~~
+
+After an upgrade, the next Agent startup automatically synchronizes adapters
+that were previously installed by mam. Run `mam install --agent NAME` only for
+a new agent or to repair a reported conflict. Automatic synchronization can be
+disabled with `AGENT_MEMORY_AUTO_SYNC_ADAPTERS=false`.
 
 If the tool was installed with an exact version pin, use:
 

@@ -1,6 +1,8 @@
 import json
 
+import multi_agent_memory.install as install_module
 from multi_agent_memory.install import install_agent
+from multi_agent_memory.install import adapter_status, sync_adapters
 from multi_agent_memory.resources import read_text
 
 
@@ -30,6 +32,78 @@ def test_install_is_idempotent_and_refuses_unmanaged_files(tmp_path):
         raise AssertionError("unmanaged adapter was overwritten")
 
 
+def test_install_records_manifest_and_syncs_changed_assets(tmp_path, monkeypatch):
+    home = tmp_path / "home"
+    state = tmp_path / "state"
+    install_agent("pi", home=home, state_dir=state)
+    target = home / ".pi/agent/extensions/agent-memory.js"
+    original = read_text("pi-agent-memory.js")
+    base_read_text = install_module.read_text
+
+    def changed_asset(name):
+        content = base_read_text(name)
+        return content.replace('const CLI = "mam"', 'const CLI = "mam-updated"') if name == "pi-agent-memory.js" else content
+
+    monkeypatch.setattr(install_module, "read_text", changed_asset)
+    statuses = sync_adapters(home=home, state_dir=state)
+
+    assert target.read_text(encoding="utf-8") == "// multi-agent-memory-managed\n" + original.replace('const CLI = "mam"', 'const CLI = "mam-updated"')
+    manifest = json.loads((state / "adapters.json").read_text(encoding="utf-8"))
+    assert manifest["adapters"]["pi"]["status"] == "current"
+    assert manifest["adapters"]["pi"]["last_action"] == "updated"
+    assert statuses["pi"]["last_action"] == "updated"
+    assert adapter_status(home=home, state_dir=state)["adapters"]["pi"]["status"] == "current"
+
+
+def test_sync_adopts_legacy_managed_file_without_manifest(tmp_path):
+    home = tmp_path / "home"
+    state = tmp_path / "state"
+    target = home / ".pi/agent/extensions/agent-memory.js"
+    target.parent.mkdir(parents=True)
+    target.write_text("// multi-agent-memory-managed\n// legacy adapter\n", encoding="utf-8")
+
+    statuses = sync_adapters(home=home, state_dir=state)
+
+    assert statuses["pi"]["last_action"] == "adopted"
+    assert json.loads((state / "adapters.json").read_text(encoding="utf-8"))["adapters"]["pi"]["status"] == "current"
+    assert target.read_text(encoding="utf-8").startswith("// multi-agent-memory-managed\nimport { spawn")
+
+
+def test_sync_records_conflict_without_overwriting_managed_target(tmp_path):
+    home = tmp_path / "home"
+    state = tmp_path / "state"
+    install_agent("pi", home=home, state_dir=state)
+    target = home / ".pi/agent/extensions/agent-memory.js"
+    target.write_text("// user replaced this adapter\n", encoding="utf-8")
+
+    statuses = sync_adapters(home=home, state_dir=state)
+
+    assert statuses["pi"]["status"] == "conflict"
+    assert target.read_text(encoding="utf-8") == "// user replaced this adapter\n"
+    assert adapter_status(home=home, state_dir=state)["adapters"]["pi"]["status"] == "conflict"
+
+
+def test_sync_ignores_unmanaged_targets_without_manifest(tmp_path):
+    home = tmp_path / "home"
+    state = tmp_path / "state"
+    target = home / ".pi/agent/extensions/agent-memory.js"
+    target.parent.mkdir(parents=True)
+    target.write_text("// user plugin\n", encoding="utf-8")
+
+    assert sync_adapters(home=home, state_dir=state) == {}
+    assert not (state / "adapters.json").exists()
+
+
+def test_sync_does_not_print_output(tmp_path, capsys):
+    home = tmp_path / "home"
+    state = tmp_path / "state"
+    install_agent("pi", home=home, state_dir=state)
+
+    sync_adapters(home=home, state_dir=state)
+
+    assert capsys.readouterr().out == ""
+
+
 def test_codex_install_migrates_legacy_stop_command(tmp_path):
     hooks_path = tmp_path / ".codex/hooks.json"
     hooks_path.parent.mkdir(parents=True)
@@ -51,6 +125,39 @@ def test_codex_install_migrates_legacy_stop_command(tmp_path):
     assert commands == [
         'mam pending --session-id codex --summary-file "$AGENT_MEMORY_SUMMARY_FILE" >/dev/null'
     ]
+
+
+def test_hook_merge_replaces_old_managed_command_variants(tmp_path):
+    hooks_path = tmp_path / ".codex/hooks.json"
+    hooks_path.parent.mkdir(parents=True)
+    hooks_path.write_text(
+        json.dumps({
+            "hooks": {
+                "SessionStart": [{"matcher": "", "hooks": [
+                    {"type": "command", "command": "mam recover --old"},
+                    {"type": "command", "command": "mam context --old"},
+                    {"type": "command", "command": "mam protocol --old"},
+                ]}],
+                "Stop": [{"matcher": "", "hooks": [
+                    {"type": "command", "command": "mam pending --session-id codex --old"},
+                ]}],
+            },
+        }),
+        encoding="utf-8",
+    )
+
+    install_agent("codex", home=tmp_path)
+
+    commands = [
+        hook["command"]
+        for blocks in json.loads(hooks_path.read_text(encoding="utf-8"))["hooks"].values()
+        for block in blocks
+        for hook in block["hooks"]
+    ]
+    assert commands.count("mam recover") == 1
+    assert commands.count("mam context") == 1
+    assert commands.count("mam protocol") == 1
+    assert sum(command.startswith("mam pending --session-id codex") for command in commands) == 1
 
 
 def test_claude_install_migrates_legacy_stop_command(tmp_path):
