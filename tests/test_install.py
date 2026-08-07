@@ -30,6 +30,52 @@ def test_install_is_idempotent_and_refuses_unmanaged_files(tmp_path):
         raise AssertionError("unmanaged adapter was overwritten")
 
 
+def test_codex_install_migrates_legacy_stop_command(tmp_path):
+    hooks_path = tmp_path / ".codex/hooks.json"
+    hooks_path.parent.mkdir(parents=True)
+    hooks_path.write_text(
+        '{"hooks": {"Stop": [{"matcher": "", "hooks": [{"type": "command", '
+        '"command": "mam pending --session-id codex --summary-file \\\"$AGENT_MEMORY_SUMMARY_FILE\\\"", '
+        '"timeout": 5}]}]}}\n',
+        encoding="utf-8",
+    )
+
+    result = install_agent("codex", home=tmp_path)
+
+    assert "updated" in result[0]
+    commands = [
+        hook["command"]
+        for block in json.loads(hooks_path.read_text(encoding="utf-8"))["hooks"]["Stop"]
+        for hook in block["hooks"]
+    ]
+    assert commands == [
+        'mam pending --session-id codex --summary-file "$AGENT_MEMORY_SUMMARY_FILE" >/dev/null'
+    ]
+
+
+def test_claude_install_migrates_legacy_stop_command(tmp_path):
+    settings_path = tmp_path / ".claude/settings.json"
+    settings_path.parent.mkdir(parents=True)
+    settings_path.write_text(
+        '{"hooks": {"Stop": [{"matcher": "", "hooks": [{"type": "command", '
+        '"command": "mam pending --session-id claude-code --summary-file \\\"$AGENT_MEMORY_SUMMARY_FILE\\\"", '
+        '"timeout": 5}]}]}}\n',
+        encoding="utf-8",
+    )
+
+    result = install_agent("claude", home=tmp_path)
+
+    assert "updated" in result[0]
+    commands = [
+        hook["command"]
+        for block in json.loads(settings_path.read_text(encoding="utf-8"))["hooks"]["Stop"]
+        for hook in block["hooks"]
+    ]
+    assert commands == [
+        'mam pending --session-id claude-code --summary-file "$AGENT_MEMORY_SUMMARY_FILE" >/dev/null'
+    ]
+
+
 def test_protocol_is_shipped_as_a_package_resource():
     protocol = read_text("protocol.md")
     assert "记住" in protocol
@@ -52,6 +98,10 @@ def test_claude_code_install_merges_settings_and_preserves_claude_md(tmp_path):
     assert data["hooks"]["UserHook"] == []
     assert "mam context" in commands
     assert "mam protocol" in commands
+    stop_commands = [hook["command"] for block in data["hooks"]["Stop"] for hook in block["hooks"]]
+    assert stop_commands == [
+        'mam pending --session-id claude-code --summary-file "$AGENT_MEMORY_SUMMARY_FILE" >/dev/null'
+    ]
     assert any("CLAUDE.md" in result for result in results)
     text = instructions.read_text(encoding="utf-8")
     assert "Keep this text." in text

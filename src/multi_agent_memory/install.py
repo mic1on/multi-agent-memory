@@ -46,11 +46,33 @@ def _merge_hooks(path: Path, asset: str) -> str:
     hooks = data.setdefault("hooks", {})
     if not isinstance(hooks, dict):
         raise ValueError(f"Codex hooks must contain an object at hooks: {path}")
+    source_commands = {
+        hook.get("command")
+        for blocks in source["hooks"].values()
+        for block in blocks
+        for hook in block.get("hooks", [])
+        if isinstance(hook, dict)
+    }
+    legacy_commands = {
+        command.removesuffix(" >/dev/null"): command
+        for command in source_commands
+        if isinstance(command, str) and command.endswith(" >/dev/null")
+    }
     changed = False
     for event, blocks in source["hooks"].items():
         target = hooks.setdefault(event, [])
         if not isinstance(target, list):
             raise ValueError(f"Codex hook event must be a list: hooks.{event}")
+        for block in target:
+            if not isinstance(block, dict):
+                continue
+            for hook in block.get("hooks", []):
+                if not isinstance(hook, dict):
+                    continue
+                command = hook.get("command")
+                if command in legacy_commands:
+                    hook["command"] = legacy_commands[command]
+                    changed = True
         commands = {hook.get("command") for block in target if isinstance(block, dict) for hook in block.get("hooks", []) if isinstance(hook, dict)}
         for block in blocks:
             missing = [hook for hook in block["hooks"] if hook.get("command") not in commands]

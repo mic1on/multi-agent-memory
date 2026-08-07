@@ -16,11 +16,18 @@ function run(args, cwd) {
 
 export const AgentMemoryPlugin = async ({ directory }) => {
   const cache = new Map()
+  const sessionIds = new Set()
   const protocol = await run(["protocol"], directory)
   await run(["recover"], directory)
   return {
+    dispose: async () => {
+      await Promise.all([...sessionIds].map((sessionId) =>
+        run(["pending", "--session-id", sessionId, "--summary-file", process.env.AGENT_MEMORY_SUMMARY_FILE || ""], directory),
+      ))
+    },
     "experimental.chat.system.transform": async (input, output) => {
       const key = input.sessionID || "__global__"
+      if (key !== "__global__") sessionIds.add(key)
       let context = cache.get(key)
       if (context === undefined) {
         context = await run(["context"], directory)
