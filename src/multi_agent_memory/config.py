@@ -35,6 +35,7 @@ class Settings:
     state_dir: Path
     index_path: Path
     recall_limit: int = 8
+    auto_sync_adapters: bool = True
 
     @classmethod
     def load(cls, config_file: str | Path | None = None) -> "Settings":
@@ -52,4 +53,7 @@ class Settings:
         limit = int(settings.get("RECALL_LIMIT", 8))
         if limit < 1 or limit > 100:
             raise ValueError("recall_limit must be between 1 and 100")
-        return cls(vault=vault.resolve(), state_dir=state.resolve(), index_path=index.resolve(), recall_limit=limit)
+        auto_sync = settings.get("AUTO_SYNC_ADAPTERS", True)
+        if not isinstance(auto_sync, bool):
+            auto_sync = str(auto_sync).strip().casefold() not in {"0", "false", "no", "off"}
+        return cls(vault=vault.resolve(), state_dir=state.resolve(), index_path=index.resolve(), recall_limit=limit, auto_sync_adapters=auto_sync)
