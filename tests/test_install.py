@@ -123,7 +123,7 @@ def test_codex_install_migrates_legacy_stop_command(tmp_path):
         for hook in block["hooks"]
     ]
     assert commands == [
-        'mam pending --session-id codex --summary-file "$AGENT_MEMORY_SUMMARY_FILE" >/dev/null'
+        'mam pending --session-id codex --summary-file "$AGENT_MEMORY_SUMMARY_FILE" >/dev/null 2>&1; printf \'{}\''
     ]
 
 

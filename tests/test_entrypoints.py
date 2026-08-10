@@ -15,4 +15,4 @@ def test_short_entrypoint_is_available():
 def test_short_entrypoint_version_commands_are_available():
     for args in (("-v",), ("version",)):
         result = subprocess.run(["uv", "run", "mam", *args], capture_output=True, text=True, check=True)
-        assert result.stdout.strip() == "0.2.0"
+        assert result.stdout.strip() == "0.2.1"

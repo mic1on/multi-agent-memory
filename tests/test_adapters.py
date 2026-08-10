@@ -84,7 +84,7 @@ def test_codex_example_is_valid_json():
         assert all("memoryctl" not in command for command in session_commands)
 
 
-def test_codex_stop_hook_discards_human_readable_stdout(tmp_path):
+def test_codex_stop_hook_returns_valid_json_after_discarding_human_readable_stdout(tmp_path):
     mam = tmp_path / "mam"
     mam.write_text("#!/bin/sh\nprintf 'pending receipt\n'\n", encoding="utf-8")
     mam.chmod(0o755)
@@ -104,7 +104,7 @@ def test_codex_stop_hook_discards_human_readable_stdout(tmp_path):
             env=environment,
             check=True,
         )
-        assert result.stdout == ""
+        assert json.loads(result.stdout) == {}
 
 
 def test_claude_stop_hook_discards_human_readable_stdout(tmp_path):

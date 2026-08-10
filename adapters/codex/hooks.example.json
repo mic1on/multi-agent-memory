@@ -14,7 +14,7 @@
       {
         "matcher": "",
         "hooks": [
-          {"type": "command", "command": "mam pending --session-id codex --summary-file \"$AGENT_MEMORY_SUMMARY_FILE\" >/dev/null", "timeout": 5}
+          {"type": "command", "command": "mam pending --session-id codex --summary-file \"$AGENT_MEMORY_SUMMARY_FILE\" >/dev/null 2>&1; printf '{}'", "timeout": 5}
         ]
       }
     ]
