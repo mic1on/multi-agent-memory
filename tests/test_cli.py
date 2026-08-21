@@ -30,7 +30,7 @@ def test_cli_version_commands_match():
     command = subprocess.run([sys.executable, "-m", "multi_agent_memory.cli", "version"], capture_output=True, text=True, check=True)
 
     assert short.stdout == command.stdout
-    assert short.stdout.strip() == "0.2.1"
+    assert short.stdout.strip() == "0.2.2"
 
 
 def test_recover_auto_syncs_managed_adapter_without_extra_stdout(tmp_path):
