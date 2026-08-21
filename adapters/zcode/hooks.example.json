@@ -1,0 +1,23 @@
+{
+  "hooks": {
+    "enabled": true,
+    "events": {
+      "SessionStart": [
+        {
+          "matcher": "startup|clear|compact",
+          "hooks": [
+            {"type": "process", "command": "mam", "args": ["zcode-hook", "SessionStart"], "enabled": true, "timeoutMs": 5000}
+          ]
+        }
+      ],
+      "Stop": [
+        {
+          "matcher": "",
+          "hooks": [
+            {"type": "process", "command": "mam", "args": ["zcode-hook", "Stop"], "enabled": true, "timeoutMs": 5000}
+          ]
+        }
+      ]
+    }
+  }
+}

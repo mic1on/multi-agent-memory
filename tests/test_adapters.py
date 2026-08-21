@@ -84,6 +84,17 @@ def test_codex_example_is_valid_json():
         assert all("memoryctl" not in command for command in session_commands)
 
 
+def test_zcode_hook_asset_is_valid_and_uses_process_protocol():
+    for path in (ROOT / "src/multi_agent_memory/assets/zcode-hooks.json", ROOT / "adapters/zcode/hooks.example.json"):
+        data = json.loads(path.read_text(encoding="utf-8"))
+        assert data["hooks"]["enabled"] is True
+        for event in ("SessionStart", "Stop"):
+            hook = data["hooks"]["events"][event][0]["hooks"][0]
+            assert hook["type"] == "process"
+            assert hook["command"] == "mam"
+            assert hook["args"] == ["zcode-hook", event]
+
+
 def test_codex_stop_hook_returns_valid_json_after_discarding_human_readable_stdout(tmp_path):
     mam = tmp_path / "mam"
     mam.write_text("#!/bin/sh\nprintf 'pending receipt\n'\n", encoding="utf-8")

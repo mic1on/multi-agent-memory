@@ -20,12 +20,13 @@ from .resources import read_text
 
 MANIFEST_SCHEMA = 1
 MANIFEST_NAME = "adapters.json"
-SUPPORTED_AGENTS = ("codex", "pi", "opencode", "claude")
+SUPPORTED_AGENTS = ("codex", "pi", "opencode", "claude", "zcode")
 ADAPTER_ASSETS = {
     "codex": ("codex-hooks.json",),
     "pi": ("pi-agent-memory.js",),
     "opencode": ("opencode-agent-memory.js",),
     "claude": ("claude-hooks.json", "claude-code.md"),
+    "zcode": ("zcode-hooks.json",),
 }
 
 
@@ -42,6 +43,7 @@ def _targets(root: Path) -> dict[str, tuple[Path, ...]]:
         "pi": (root / ".pi" / "agent" / "extensions" / "agent-memory.js",),
         "opencode": (root / ".config" / "opencode" / "plugins" / "agent-memory.js",),
         "claude": (root / ".claude" / "settings.json", root / ".claude" / "CLAUDE.md"),
+        "zcode": (root / ".zcode" / "cli" / "config.json",),
     }
 
 
@@ -183,6 +185,16 @@ def _managed_command_key(command: Any) -> str | None:
     return None
 
 
+def _zcode_hook_key(hook: Any) -> str | None:
+    if not isinstance(hook, dict) or hook.get("type") != "process":
+        return None
+    command = hook.get("command")
+    args = hook.get("args")
+    if command != "mam" or not isinstance(args, list) or args[:1] != ["zcode-hook"]:
+        return None
+    return str(args[1]) if len(args) > 1 else "default"
+
+
 def _legacy_agents(root: Path) -> list[str]:
     targets = _targets(root)
     discovered: list[str] = []
@@ -192,6 +204,8 @@ def _legacy_agents(root: Path) -> list[str]:
             discovered.append(agent)
     if _has_hook_signature(targets["codex"][0], "codex"):
         discovered.append("codex")
+    if _has_zcode_signature(targets["zcode"][0]):
+        discovered.append("zcode")
     claude_instructions = targets["claude"][1]
     if _has_hook_signature(targets["claude"][0], "claude-code") and claude_instructions.is_file():
         instructions = claude_instructions.read_text(encoding="utf-8")
@@ -208,6 +222,8 @@ def _managed_target_is_intact(agent: str, root: Path, record: dict[str, Any]) ->
             return bool(target.is_file() and "multi-agent-memory-managed" in target.read_text(encoding="utf-8") and (not record.get("target_hash") or _file_hash(target) == record["target_hash"]))
         if agent == "codex":
             return _has_hook_signature(targets[0], "codex")
+        if agent == "zcode":
+            return _has_zcode_signature(targets[0])
         if not _has_hook_signature(targets[0], "claude-code") or not targets[1].is_file():
             return False
         instructions = targets[1].read_text(encoding="utf-8")
@@ -229,7 +245,9 @@ def _install_one(agent: str, root: Path, *, force: bool = False) -> list[str]:
             _merge_hooks(targets[agent][0], "claude-hooks.json"),
             _merge_instruction_file(root / ".claude" / "CLAUDE.md", "claude-code.md"),
         ]
-    raise ValueError(f"unknown agent: {agent}; choose codex, pi, opencode, claude, or all")
+    if agent == "zcode":
+        return [_merge_zcode_hooks(targets[agent][0], force=force)]
+    raise ValueError(f"unknown agent: {agent}; choose codex, pi, opencode, claude, zcode, or all")
 
 
 def _write_new(path: Path, content: str, *, force: bool) -> str:
@@ -301,6 +319,73 @@ def _merge_codex(path: Path, *, force: bool) -> str:
     return _merge_hooks(path, "codex-hooks.json")
 
 
+def _has_zcode_signature(path: Path) -> bool:
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return False
+    events = data.get("hooks", {}).get("events", {}) if isinstance(data, dict) else {}
+    if not isinstance(events, dict):
+        return False
+    found = set()
+    for blocks in events.values():
+        if not isinstance(blocks, list):
+            continue
+        for block in blocks:
+            for hook in block.get("hooks", []) if isinstance(block, dict) and isinstance(block.get("hooks"), list) else []:
+                key = _zcode_hook_key(hook)
+                if key:
+                    found.add(key)
+    return {"SessionStart", "Stop"}.issubset(found)
+
+
+def _merge_zcode_hooks(path: Path, *, force: bool = False) -> str:
+    source = json.loads(read_text("zcode-hooks.json"))
+    if path.exists():
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError as error:
+            raise ValueError(f"invalid zcode config JSON: {path}: {error}") from error
+    else:
+        data = {}
+    if not isinstance(data, dict):
+        raise ValueError(f"zcode config must be a JSON object: {path}")
+    hooks = data.setdefault("hooks", {})
+    if not isinstance(hooks, dict):
+        raise ValueError(f"zcode config must contain an object at hooks: {path}")
+    events = hooks.setdefault("events", {})
+    if not isinstance(events, dict):
+        raise ValueError(f"zcode hooks must contain an object at hooks.events: {path}")
+    changed = hooks.get("enabled") is not True
+    hooks["enabled"] = True
+    for event, blocks in source["hooks"]["events"].items():
+        target = events.setdefault(event, [])
+        if not isinstance(target, list):
+            raise ValueError(f"zcode hook event must be a list: hooks.events.{event}")
+        for block in target:
+            if not isinstance(block, dict) or not isinstance(block.get("hooks"), list):
+                continue
+            for hook in block["hooks"]:
+                key = _zcode_hook_key(hook)
+                if key:
+                    replacement = next((h for b in blocks for h in b.get("hooks", []) if _zcode_hook_key(h) == key), None)
+                    if replacement is not None and hook != replacement:
+                        hook.clear(); hook.update(replacement); changed = True
+        existing = {_zcode_hook_key(h) for b in target if isinstance(b, dict) for h in b.get("hooks", []) if isinstance(h, dict)}
+        for block in blocks:
+            missing = [h for h in block.get("hooks", []) if _zcode_hook_key(h) not in existing]
+            if missing:
+                target.append({"matcher": block.get("matcher", ""), "hooks": missing})
+                existing.update(_zcode_hook_key(h) for h in missing)
+                changed = True
+    if not changed:
+        return f"already installed: {path}"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    backup = _backup(path) if path.exists() else None
+    path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    return f"updated: {path}" + (f" (backup: {backup})" if backup else "")
+
+
 def _merge_instruction_file(path: Path, asset: str) -> str:
     managed = read_text(asset).strip()
     marker_start = "<!-- multi-agent-memory-managed:start -->"
@@ -329,7 +414,7 @@ def _selected_agents(agent: str) -> tuple[str, ...]:
         return SUPPORTED_AGENTS
     if agent in SUPPORTED_AGENTS:
         return (agent,)
-    raise ValueError(f"unknown agent: {agent}; choose codex, pi, opencode, claude, or all")
+    raise ValueError(f"unknown agent: {agent}; choose codex, pi, opencode, claude, zcode, or all")
 
 
 def install_agent(

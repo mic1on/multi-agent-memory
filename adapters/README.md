@@ -46,4 +46,18 @@ This merges SessionStart and Stop hooks into ~/.claude/settings.json and adds a
 managed protocol block to ~/.claude/CLAUDE.md. Existing settings and user
 instructions are preserved. Restart Claude Code after the adapter changes.
 
+## ZCode
+
+ZCode uses user-level hooks in `~/.zcode/cli/config.json`; project-level Hook
+configuration is ignored by ZCode. Install the adapter with:
+
+```bash
+mam install --agent zcode
+```
+
+The installer preserves unrelated settings, enables `hooks.enabled`, and merges
+SessionStart and Stop process hooks under `hooks.events`. Start a new ZCode
+session after installation because ZCode snapshots Hook configuration per
+session.
+
 The package does not currently provide Hermes or OpenClaw adapters.
