@@ -29,6 +29,8 @@ def _parser() -> argparse.ArgumentParser:
     sub.add_parser("version", help="show the installed mam version")
     sub.add_parser("init", help="create the Vault layout and search index")
     sub.add_parser("status", help="show Vault and index status")
+    hook = sub.add_parser("zcode-hook", help="run a zcode Hook protocol adapter")
+    hook.add_argument("event", choices=("SessionStart", "Stop"))
     for name in ("search", "recall", "context"):
         command = sub.add_parser(name, help=f"{name} confirmed memories")
         command.add_argument("query", nargs="?", default="")
@@ -61,18 +63,18 @@ def _parser() -> argparse.ArgumentParser:
     sub.add_parser("recover", help="promote pending summaries")
     sub.add_parser("protocol", help="print the natural-language agent protocol")
     install = sub.add_parser("install", help="install one or more agent adapters")
-    install.add_argument("--agent", action="append", choices=("codex", "pi", "opencode", "claude"), help="adapter to install; repeat to select multiple")
+    install.add_argument("--agent", action="append", choices=("codex", "pi", "opencode", "claude", "zcode"), help="adapter to install; repeat to select multiple")
     install.add_argument("--all", action="store_true", help="install all supported adapters")
     install.add_argument("--force", action="store_true", help="replace a managed adapter after creating a backup")
     install.add_argument("--home", help=argparse.SUPPRESS)
     legacy = sub.add_parser("install-agent", help="compatibility alias for install")
-    legacy.add_argument("--agent", required=True, choices=("auto", "codex", "pi", "opencode", "claude", "all"))
+    legacy.add_argument("--agent", required=True, choices=("auto", "codex", "pi", "opencode", "claude", "zcode", "all"))
     legacy.add_argument("--force", action="store_true", help="replace a managed adapter after creating a backup")
     legacy.add_argument("--home", help=argparse.SUPPRESS)
     return parser
 
 
-SUPPORTED_AGENTS = ("codex", "pi", "opencode", "claude")
+SUPPORTED_AGENTS = ("codex", "pi", "opencode", "claude", "zcode")
 
 
 def _interactive_agents() -> list[str]:
@@ -82,7 +84,7 @@ def _interactive_agents() -> list[str]:
         raise ValueError("mam install needs an interactive terminal; use --agent NAME or --all")
     selected: set[str] = set()
     cursor = 0
-    options = ("codex", "pi", "opencode", "claude", "all")
+    options = (*SUPPORTED_AGENTS, "all")
     print("Select agent adapters (Up/Down, Space, Enter):")
     old_settings = termios.tcgetattr(sys.stdin.fileno())
     try:
@@ -154,12 +156,43 @@ def _print_rows(rows: list[dict[str, str]], prompt: bool) -> None:
         excerpt = re.sub(r"\s+", " ", row["body"]).strip()
         print(f"{row['id']}\t{row['status']}\t{row['type']}\t{row['path']}\t{excerpt[:180]}")
 
+
+def _run_zcode_hook(event: str) -> int:
+    """Translate the memory lifecycle into zcode's stdin/stdout Hook protocol."""
+    raw = sys.stdin.readline()
+    try:
+        payload = json.loads(raw) if raw.strip() else {}
+    except json.JSONDecodeError:
+        return 0
+    session_id = str(payload.get("session_id") or payload.get("sessionId") or "zcode")
+    try:
+        settings = Settings.load()
+        vault = Vault(settings)
+        if event == "SessionStart":
+            vault.recover()
+            detected = detect_project()
+            rows = _filter_project(vault.search("", max(settings.recall_limit * 4, 32)), detected[0] if detected else None)
+            context = "\n\n".join(f"## {row['title']}\n{row['body'].strip()}" for row in rows)
+            protocol = read_text("protocol.md")
+            additional = (protocol + ("\n\n" + context if context else "")).strip()
+            if additional:
+                print(json.dumps({"hookSpecificOutput": {"hookEventName": event, "additionalContext": additional}}, ensure_ascii=False))
+        else:
+            summary = payload.get("last_assistant_message") or payload.get("lastAssistantMessage")
+            if summary:
+                vault.pending({"session_id": session_id, "summary": str(summary), "title": "ZCode session summary"})
+        return 0
+    except (OSError, ValueError, TypeError, sqlite3.Error):
+        return 0
+
 def main(argv: list[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     if args.command == "version":
         print(__version__)
         return 0
     try:
+        if args.command == "zcode-hook":
+            return _run_zcode_hook(args.event)
         vault = Vault(Settings.load(args.config))
         if args.command == "init":
             print(f"initialized {vault.root}; indexed {vault.rebuild()} documents")

@@ -44,6 +44,7 @@ mam install
 | Pi | mam install --agent pi |
 | OpenCode | mam install --agent opencode |
 | Claude Code | mam install --agent claude |
+| ZCode | mam install --agent zcode |
 
 安装或升级适配器后请重启 Agent。Hermes 和 OpenClaw 暂不支持。
 

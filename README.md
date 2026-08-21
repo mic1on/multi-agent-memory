@@ -44,6 +44,7 @@ Supported adapters:
 | Pi | mam install --agent pi |
 | OpenCode | mam install --agent opencode |
 | Claude Code | mam install --agent claude |
+| ZCode | mam install --agent zcode |
 
 Restart the agent after installing or upgrading its adapter. Hermes and OpenClaw are not supported yet.
 

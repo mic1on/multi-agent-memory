@@ -8,7 +8,7 @@ from multi_agent_memory.resources import read_text
 
 def test_install_all_adapters_into_an_isolated_home(tmp_path):
     results = install_agent("all", home=tmp_path)
-    assert len(results) == 5
+    assert len(results) == 6
     assert (tmp_path / ".pi/agent/extensions/agent-memory.js").is_file()
     assert (tmp_path / ".config/opencode/plugins/agent-memory.js").is_file()
     hooks = json.loads((tmp_path / ".codex/hooks.json").read_text(encoding="utf-8"))
@@ -16,6 +16,10 @@ def test_install_all_adapters_into_an_isolated_home(tmp_path):
     assert "mam context" in commands
     assert "mam recover" in commands
     assert "mam protocol" in commands
+    zcode = json.loads((tmp_path / ".zcode/cli/config.json").read_text(encoding="utf-8"))
+    assert zcode["hooks"]["enabled"] is True
+    assert "SessionStart" in zcode["hooks"]["events"]
+    assert "Stop" in zcode["hooks"]["events"]
 
 
 def test_install_is_idempotent_and_refuses_unmanaged_files(tmp_path):
